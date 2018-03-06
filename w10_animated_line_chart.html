@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Animate a line</title>
+    
+
+<style>
+
+body {
+  font-family: sans-serif;
+}
+
+
+a {
+	font-size:20px;
+	margin-right:30px;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.line {
+  fill:none;
+}
+
+.x.axis path {
+  display: inline;
+}
+
+.y.axis path {
+  display: none;
+}
+
+
+	
+.axis.y .tick line 		{ 			
+stroke-width:1px; 			
+stroke:#ccc; 			
+stroke-opacity:1;	 		
+}
+
+
+
+</style>
+<body>
+
+<div id="controls">
+      <a href="javascript:;">Animate</a>
+
+</div>
+
+<div id="chart"> </div>
+
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function(){ 
+
+		d3.selectAll("a").on("click",function(d,i){return animatelines(i);})
+		makeChart();
+	
+}, false);
+		
+		function makeChart()
+		{
+			  
+			// Load in the data now...
+			
+			d3.csv("spanish-silver.csv", function(error, data) {
+		
+			//Get width of page
+			var chartwidth = parseInt(d3.select("#chart").style("width"));
+			
+			// Set the margins
+			var margin = {top: 20, right: 15, bottom: 30, left: 60},
+				width = chartwidth - margin.left - margin.right,
+				height = 430 - margin.top - margin.bottom;
+			
+
+			// Setting up the scaling objects		
+			var x = d3.time.scale()
+				.range([0, width]);
+			
+			// Same for the y axis
+			var y = d3.scale.linear()
+				.range([height, 0]);
+			
+			// Same for colour.
+			var color = d3.scale.category10();
+			
+			//Setting x-axis up here using x scaling object
+			var xAxis = d3.svg.axis()
+				.scale(x)
+				.orient("bottom");
+			
+			//Setting y-axis up here using y scaling object
+			var yAxis = d3.svg.axis()
+				.scale(y)
+				.orient("left")
+				.tickSize(-width);
+				
+			// Setting up a d3 line object - used to draw lines later
+			var line = d3.svg.line() 
+				.x(function(d) { return x(d.year); }) 
+				.y(function(d) { return y(d.population); });
+			
+
+			
+			// Now to actually make the chart area
+			var svg = d3.select("#chart").append("svg")
+				.attr("class", "svgele") 
+				.attr("id", "svgEle")  
+				.attr("width", width + margin.left + margin.right) 
+				.attr("height", height + margin.top + margin.bottom)
+			  .append("g") 
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+			
+			 
+			  color.domain(d3.keys(data[0]).filter(function(key) { return key !== "year"; }));
+			  		  
+		
+		  data.forEach(function(d) {
+    			  d.year= +d.year;
+      		       	  d.silver_minted = +d.silver_minted;
+           
+  			});
+			
+			  // Building an object with all the data in it for each line
+			  projections = color.domain().map(function(name) {
+				return {
+				  name:name,
+				  values: data.map(function(d) {
+					return {year: d.year, population: +d[name]};
+					 })
+				};
+			  });
+			  
+			 
+			  x.domain(d3.extent(data, function(d) { return d.year; })); 
+                          y.domain(d3.extent(data, function(d) { return d.silver_minted; })); 
+
+
+			  // Bind the x-axis to the svg object
+			  svg.append("g")
+				  .attr("class", "x axis")
+				  .attr("transform", "translate(0," + height + ")")
+				  .call(xAxis)
+                                  .attr("id", "#xAxis")     
+				.append("text") 
+				  .attr("y", 40) 
+				  .attr("x", width/2 ) //place the year label in the middle of the axis
+				  .attr("dx", ".71em") 
+				  .style("text-anchor", "end")
+			
+			
+				// append the yAxis and add label as before.
+			  svg.append("g")
+				  .attr("class", "y axis")
+				  .attr("id", "#yAxis")
+				  .call(yAxis)
+				.append("text")
+				  .attr("y", 0)
+				  .attr("x", -60)
+				  .attr("dy", ".71em")
+				  .style("text-anchor", "start")
+		
+			  
+	
+				//create proj
+				var proj = svg.selectAll(".proj")
+						.data(projections)
+						.enter()
+						.append("g")
+						.attr("class", "proj");
+				
+				// Drawing the lines
+					proj.append("path")
+						.attr("class", "line")
+						.attr("id" , function(d, i){
+							return "line" + i;
+						})
+						.attr("stroke-linecap","round")
+					  .attr("d", function(d,i) {
+						  return line(d.values);
+						 })
+					  .style("stroke", function(d) { return color(d.name); });
+					
+				//Initially set the lines to not show	
+				 d3.selectAll(".line").style("opacity","0");
+				 
+				//Draw single line onload
+				animatelines(0);
+		});		
+		
+				  
+			  
+		  }
+	
+	
+		function animatelines(whichline) {
+
+				// Look at what button was clicked
+				if(whichline == 0 ){
+				  
+				// First set all the lines to be invisible
+				d3.selectAll(".line").style("opacity","0");
+				  
+				// Then highlight the main line to be fully visable and give it a thicker stroke
+				d3.select("#line0").style("opacity","1").style("stroke-width",4);
+			  
+				// First work our the total length of the line 
+				var totalLength = d3.select("#line0").node().getTotalLength();
+				
+				d3.selectAll("#line0")
+				  // Set the line pattern to be an long line followed by an equally long gap
+				  .attr("stroke-dasharray", totalLength + " " + totalLength)
+				  // Set the intial starting position so that only the gap is shown by offesetting by the total length of the line
+				  .attr("stroke-dashoffset", totalLength)
+				  // Then the following lines transition the line so that the gap is hidden...
+				  .transition()
+				  .duration(5000)
+				  .ease("quad")
+				  .attr("stroke-dashoffset", 0);
+					  
+			  }
+			 
+			 
+			 else if(whichline == 1){
+					
+				d3.selectAll(".line").style("opacity","0.5");
+			
+				
+				//Select All of the lines and process them one by one
+				d3.selectAll(".line").each(function(d,i){
+
+				// Get the length of each line in turn
+				var totalLength = d3.select("#line" + i).node().getTotalLength();
+
+					d3.selectAll("#line" + i).attr("stroke-dasharray", totalLength + " " + totalLength)
+					  .attr("stroke-dashoffset", totalLength)
+					  .transition()
+					  .duration(5000)
+					  .delay(100*i)
+					  .ease("quad") //Try linear, quad, bounce... see other examples here - http://bl.ocks.org/hunzy/9929724
+					  .attr("stroke-dashoffset", 0)
+					  .style("stroke-width",3)
+				})
+		
+			
+			 }
+			 
+			 
+	  }  
+
+
+
+</script>
+
+</body>
+</head>
+</html>
